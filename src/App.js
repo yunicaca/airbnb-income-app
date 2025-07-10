@@ -8,26 +8,32 @@ function App() {
   const [keywordFilter, setKeywordFilter] = useState('');
 
   const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    const allParsedData = [];
+    let processedCount = 0;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      beforeFirstChunk: (chunk) => {
-        const lines = chunk.split('\n');
-        if (lines[0].includes('从') && lines[0].includes('的月度报告')) {
-          return lines.slice(1).join('\n');
-        }
-        return chunk;
-      },
-      complete: function (results) {
-        setData(results.data);
-        setFilteredData(results.data);
-      }
+    files.forEach((file) => {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        beforeFirstChunk: (chunk) => {
+          const lines = chunk.split('\n');
+          if (lines[0].includes('从') && lines[0].includes('的月度报告')) {
+            return lines.slice(1).join('\n');
+          }
+          return chunk;
+        },
+        complete: function (results) {
+          allParsedData.push(...results.data);
+          processedCount++;
+          if (processedCount === files.length) {
+            setData(allParsedData);
+            setFilteredData(allParsedData);
+          }
+        },
+      });
     });
   };
-
 
   const handleFilter = () => {
     const filtered = data.filter(row => {
