@@ -1,10 +1,9 @@
-// src/App.js
-
+// App.js
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebase';
-import Login from './Login';
 import Papa from 'papaparse';
+import { auth } from './firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import Login from './Login';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -13,29 +12,26 @@ function App() {
   const [monthFilter, setMonthFilter] = useState('');
   const [keywordFilter, setKeywordFilter] = useState('');
 
-  // 🔐 检查用户是否登录
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
     });
     return () => unsubscribe();
   }, []);
 
-  // 🚪 登出函数
   const handleLogout = () => {
     signOut(auth);
   };
 
-  // ⬇️ 如果没有登录，显示登录界面
-  if (!user) return <Login />;
-
-  // 📤 上传并处理 CSV 文件（可多选）
   const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const allData = [];
+    const files = e.target.files;
+    const allResults = [];
+    let completed = 0;
 
-    files.forEach((file, index) => {
-      const fileMonth = file.name.match(/\d{4}-\d{2}/)?.[0] || '';
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const monthFromFilename = file.name.match(/\d{4}-\d{2}/)?.[0] || '';
+
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -47,18 +43,19 @@ function App() {
           return chunk;
         },
         complete: function (results) {
-          const enhanced = results.data.map(row => ({
+          const updated = results.data.map(row => ({
             ...row,
-            月份: row['月份'] || fileMonth
+            '月份': monthFromFilename
           }));
-          allData.push(...enhanced);
-          if (index === files.length - 1) {
-            setData(allData);
-            setFilteredData(allData);
+          allResults.push(...updated);
+          completed++;
+          if (completed === files.length) {
+            setData(allResults);
+            setFilteredData(allResults);
           }
         }
       });
-    });
+    }
   };
 
   const handleFilter = () => {
@@ -75,11 +72,12 @@ function App() {
     return sum + amount;
   }, 0);
 
+  if (!user) return <Login />;
+
   return (
     <div style={{ padding: '20px' }}>
       <h2>Airbnb 收入汇总工具（月度报告）</h2>
-      <p>欢迎，{user.email}！<button onClick={handleLogout}>登出</button></p>
-
+      <button onClick={handleLogout}>登出</button>
       <input type="file" accept=".csv" multiple onChange={handleFileUpload} />
 
       <div style={{ marginTop: '10px' }}>
@@ -107,4 +105,21 @@ function App() {
           </tr>
         </thead>
         <tbody>
-          {filteredData.map((ro
+          {filteredData.map((row, idx) => (
+            <tr key={idx}>
+              <td>{row['房源名称']}</td>
+              <td>{row['内部名称']}</td>
+              <td>{row['货币']}</td>
+              <td>{row['预订额']}</td>
+              <td>{row['获订晚数']}</td>
+              <td>{row['日均价']}</td>
+              <td>{row['月份']}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default App;
