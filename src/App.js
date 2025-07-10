@@ -1,36 +1,30 @@
-// App.js
+// src/App.js
 import React, { useState, useEffect } from 'react';
-import Papa from 'papaparse';
-import { auth } from './firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Login from './Login';
+import Papa from 'papaparse';
+import './firebase'; // 引入 firebase 配置文件
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [monthFilter, setMonthFilter] = useState('');
   const [keywordFilter, setKeywordFilter] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
     });
-    return () => unsubscribe();
   }, []);
 
-  const handleLogout = () => {
-    signOut(auth);
-  };
-
   const handleFileUpload = (e) => {
-    const files = e.target.files;
-    const allResults = [];
-    let completed = 0;
+    const files = Array.from(e.target.files);
+    const allData = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const monthFromFilename = file.name.match(/\d{4}-\d{2}/)?.[0] || '';
+    files.forEach((file, index) => {
+      const inferredMonth = file.name.match(/\d{4}-\d{2}/)?.[0] || '';
 
       Papa.parse(file, {
         header: true,
@@ -43,19 +37,18 @@ function App() {
           return chunk;
         },
         complete: function (results) {
-          const updated = results.data.map(row => ({
+          const parsed = results.data.map(row => ({
             ...row,
-            '月份': monthFromFilename
+            月份: row['月份'] || inferredMonth
           }));
-          allResults.push(...updated);
-          completed++;
-          if (completed === files.length) {
-            setData(allResults);
-            setFilteredData(allResults);
+          allData.push(...parsed);
+          if (index === files.length - 1) {
+            setData(allData);
+            setFilteredData(allData);
           }
         }
       });
-    }
+    });
   };
 
   const handleFilter = () => {
@@ -72,12 +65,11 @@ function App() {
     return sum + amount;
   }, 0);
 
-  if (!user) return <Login />;
+  if (!isLoggedIn) return <Login onLogin={() => setIsLoggedIn(true)} />;
 
   return (
     <div style={{ padding: '20px' }}>
       <h2>Airbnb 收入汇总工具（月度报告）</h2>
-      <button onClick={handleLogout}>登出</button>
       <input type="file" accept=".csv" multiple onChange={handleFileUpload} />
 
       <div style={{ marginTop: '10px' }}>
