@@ -7,6 +7,17 @@ function App() {
   const [monthFilter, setMonthFilter] = useState('');
   const [keywordFilter, setKeywordFilter] = useState('');
 
+  const normalizeMonth = (raw) => {
+    if (!raw) return '';
+    const match = raw.match(/(\d{4})[\/-年](\d{1,2})/);
+    if (match) {
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      return `${year}-${month}`;
+    }
+    return '';
+  };
+
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     const allParsedData = [];
@@ -24,6 +35,9 @@ function App() {
           return chunk;
         },
         complete: function (results) {
+          results.data.forEach(row => {
+            row['月份'] = normalizeMonth(row['月份']);
+          });
           allParsedData.push(...results.data);
           processedCount++;
           if (processedCount === files.length) {
@@ -37,7 +51,7 @@ function App() {
 
   const handleFilter = () => {
     const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
+      const matchesMonth = monthFilter ? row['月份']?.startsWith(monthFilter) : true;
       const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
       return matchesMonth && matchesKeyword;
     });
