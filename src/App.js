@@ -6,32 +6,33 @@ function App() {
 
   const handleFileUpload = (e) => {
     const files = e.target.files;
-    const allRows = [];
 
     const parseFile = (file) => {
       return new Promise((resolve) => {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          skipRows: 1,
-          complete: (results) => {
-            resolve(results.data);
-          },
-        });
+        const reader = new FileReader();
+        reader.onload = () => {
+          const text = reader.result;
+          // 跳过第一行后重新处理
+          const lines = text.split("\n").slice(1).join("\n");
+          Papa.parse(lines, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              resolve(results.data);
+            },
+          });
+        };
+        reader.readAsText(file);
       });
     };
 
     const processFiles = async () => {
-      let parsedRows = [];
+      let allRows = [];
       for (const file of files) {
         const parsed = await parseFile(file);
-        // 去掉第一行标题（比如“从2025-02-01到...”）
-        const cleaned = parsed.filter(row =>
-          row["房源名称"] && row["内部名称"]
-        );
-        parsedRows.push(...cleaned);
+        allRows.push(...parsed);
       }
-      setSummary(parsedRows);
+      setSummary(allRows);
     };
 
     processFiles();
