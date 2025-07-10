@@ -25,7 +25,7 @@ function App() {
           },
           complete: function (results) {
             const fileMonth = file.name.match(/\d{4}-\d{2}/)?.[0] || '';
-            const parsed = results.data.map(row => ({ ...row, 月份: fileMonth }));
+            const parsed = results.data.map(row => ({ ...row, 月份: row['月份'] || fileMonth }));
             resolve(parsed);
           }
         });
@@ -41,7 +41,7 @@ function App() {
 
   const handleFilter = () => {
     const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
+      const matchesMonth = monthFilter ? row['月份']?.startsWith(monthFilter) : true;
       const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
       return matchesMonth && matchesKeyword;
     });
