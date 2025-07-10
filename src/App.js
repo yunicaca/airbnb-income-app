@@ -13,6 +13,7 @@ function App() {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
+          skipRows: 1,
           complete: (results) => {
             resolve(results.data);
           },
