@@ -7,69 +7,48 @@ function App() {
   const [monthFilter, setMonthFilter] = useState('');
   const [keywordFilter, setKeywordFilter] = useState('');
 
-  const normalizeMonth = (raw) => {
-    if (!raw) return '';
-    try {
-      const zhMatch = raw.match(/(\d{4})年(\d{1,2})月?/);
-      if (zhMatch) {
-        const year = zhMatch[1];
-        const month = zhMatch[2].padStart(2, '0');
-        return `${year}-${month}`;
-      }
-
-      const date = new Date(raw);
-      if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        return `${year}-${month}`;
-      }
-
-      const match = raw.match(/(\d{4})[\/-](\d{1,2})/);
-      if (match) {
-        const year = match[1];
-        const month = match[2].padStart(2, '0');
-        return `${year}-${month}`;
-      }
-      return '';
-    } catch {
-      return '';
-    }
-  };
-
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
-    const allParsedData = [];
-    let processedCount = 0;
+    let allData = [];
+    let filesProcessed = 0;
 
     files.forEach((file) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        beforeFirstChunk: (chunk) => {
-          const lines = chunk.split('\n');
-          if (lines[0].includes('从') && lines[0].includes('的月度报告')) {
-            return lines.slice(1).join('\n');
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const content = event.target.result;
+        const lines = content.split('\n');
+
+        // 获取月份信息
+        let month = '';
+        const monthMatch = lines[0].match(/\d{4}-\d{2}/);
+        if (monthMatch) {
+          month = monthMatch[0];
+        }
+
+        const csvContent = lines.slice(1).join('\n');
+        Papa.parse(csvContent, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function (results) {
+            // 为每行添加月份字段
+            const enriched = results.data.map(row => ({ ...row, '月份': month }));
+            allData = [...allData, ...enriched];
+            filesProcessed++;
+
+            if (filesProcessed === files.length) {
+              setData(allData);
+              setFilteredData(allData);
+            }
           }
-          return chunk;
-        },
-        complete: function (results) {
-          results.data.forEach(row => {
-            row['月份'] = normalizeMonth(row['月份']);
-          });
-          allParsedData.push(...results.data);
-          processedCount++;
-          if (processedCount === files.length) {
-            setData(allParsedData);
-            setFilteredData(allParsedData);
-          }
-        },
-      });
+        });
+      };
+      reader.readAsText(file);
     });
   };
 
   const handleFilter = () => {
     const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份'] === monthFilter : true;
+      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
       const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
       return matchesMonth && matchesKeyword;
     });
