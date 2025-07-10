@@ -1,65 +1,83 @@
-import React, { useState } from 'react';
-import Papa from 'papaparse';
+import React, { useState, useEffect } from "react";
+import Papa from "papaparse";
 
 function App() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [monthFilter, setMonthFilter] = useState('');
-  const [keywordFilter, setKeywordFilter] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    const allParsedData = [];
+    let filesProcessed = 0;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      beforeFirstChunk: (chunk) => {
-        const lines = chunk.split('\n');
-        if (lines[0].includes('从') && lines[0].includes('的月度报告')) {
-          return lines.slice(1).join('\n');
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        const parsed = Papa.parse(text, {
+          header: true,
+          skipEmptyLines: true,
+        });
+        allParsedData.push(...parsed.data);
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          setData(allParsedData);
         }
-        return chunk;
-      },
-      complete: function (results) {
-        setData(results.data);
-        setFilteredData(results.data);
-      }
+      };
+      reader.readAsText(file);
     });
   };
 
-  const handleFilter = () => {
-    const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
-      const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
-      return matchesMonth && matchesKeyword;
-    });
+  useEffect(() => {
+    let filtered = data;
+
+    if (selectedMonth) {
+      filtered = filtered.filter((row) =>
+        row["月份"]?.startsWith(selectedMonth)
+      );
+    }
+
+    if (keyword) {
+      filtered = filtered.filter((row) =>
+        row["内部名称"]?.includes(keyword)
+      );
+    }
+
     setFilteredData(filtered);
-  };
+  }, [selectedMonth, keyword, data]);
 
-  const totalBookingAmount = filteredData.reduce((sum, row) => {
-    const amount = parseFloat(row['预订额']?.replace(/[^\d.]/g, '') || 0);
-    return sum + amount;
-  }, 0);
+  const getTotalAmount = () => {
+    return filteredData.reduce((sum, row) => {
+      const amount = parseFloat(row["预订额"]);
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+  };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: 20 }}>
       <h2>Airbnb 收入汇总工具（月度报告）</h2>
-      <input type="file" accept=".csv" onChange={handleFileUpload} />
-
-      <div style={{ marginTop: '10px' }}>
-        按月份筛选：
-        <input type="month" onChange={e => setMonthFilter(e.target.value)} />
-        &nbsp;&nbsp;
-        按房源关键词筛选（内部名称）：
-        <input type="text" placeholder="例如: 14" onChange={e => setKeywordFilter(e.target.value)} />
-        &nbsp;
-        <button onClick={handleFilter}>筛选</button>
+      <div style={{ marginBottom: 10 }}>
+        <input type="file" multiple onChange={handleFileUpload} />
       </div>
-
-      <div style={{ marginTop: '10px' }}>筛选后预订额总价：¥{totalBookingAmount.toLocaleString()}</div>
-
-      <table border="1" cellPadding="5" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
+      <div style={{ marginBottom: 10 }}>
+        按月份筛选：
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+        />
+        &nbsp;&nbsp;按房源关键词筛选（内部名称）：
+        <input
+          type="text"
+          placeholder="例如: 14"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+        />
+      </div>
+      <div style={{ marginBottom: 10 }}>筛选后预订额总价：￥{getTotalAmount().toLocaleString()}</div>
+      <table border="1" cellPadding="5">
         <thead>
           <tr>
             <th>房源名称</th>
@@ -72,15 +90,15 @@ function App() {
           </tr>
         </thead>
         <tbody>
-          {filteredData.map((row, idx) => (
-            <tr key={idx}>
-              <td>{row['房源名称']}</td>
-              <td>{row['内部名称']}</td>
-              <td>{row['货币']}</td>
-              <td>{row['预订额']}</td>
-              <td>{row['获订晚数']}</td>
-              <td>{row['日均价']}</td>
-              <td>{row['月份']}</td>
+          {filteredData.map((row, index) => (
+            <tr key={index}>
+              <td>{row["房源名称"]}</td>
+              <td>{row["内部名称"]}</td>
+              <td>{row["货币"]}</td>
+              <td>{row["预订额"]}</td>
+              <td>{row["获订晚数"]}</td>
+              <td>{row["日均价"]}</td>
+              <td>{row["月份"]}</td>
             </tr>
           ))}
         </tbody>
