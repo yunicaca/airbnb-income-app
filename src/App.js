@@ -9,39 +9,46 @@ function App() {
 
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
-    let allResults = [];
+    let allData = [];
+    let filesProcessed = 0;
 
-    const parseFile = (file) => {
-      return new Promise((resolve) => {
-        Papa.parse(file, {
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const content = event.target.result;
+        const lines = content.split('\n');
+
+        // 获取月份信息
+        let month = '';
+        const monthMatch = lines[0].match(/\d{4}-\d{2}/);
+        if (monthMatch) {
+          month = monthMatch[0];
+        }
+
+        const csvContent = lines.slice(1).join('\n');
+        Papa.parse(csvContent, {
           header: true,
           skipEmptyLines: true,
-          beforeFirstChunk: (chunk) => {
-            const lines = chunk.split('\n');
-            if (lines[0].includes('从') && lines[0].includes('的月度报告')) {
-              return lines.slice(1).join('\n');
-            }
-            return chunk;
-          },
           complete: function (results) {
-            const fileMonth = file.name.match(/\d{4}-\d{2}/)?.[0] || '';
-            const parsed = results.data.map(row => ({ ...row, 月份: row['月份'] || fileMonth }));
-            resolve(parsed);
+            // 为每行添加月份字段
+            const enriched = results.data.map(row => ({ ...row, '月份': month }));
+            allData = [...allData, ...enriched];
+            filesProcessed++;
+
+            if (filesProcessed === files.length) {
+              setData(allData);
+              setFilteredData(allData);
+            }
           }
         });
-      });
-    };
-
-    Promise.all(files.map(parseFile)).then(allParsed => {
-      const combined = allParsed.flat();
-      setData(combined);
-      setFilteredData(combined);
+      };
+      reader.readAsText(file);
     });
   };
 
   const handleFilter = () => {
     const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.startsWith(monthFilter) : true;
+      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
       const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
       return matchesMonth && matchesKeyword;
     });
