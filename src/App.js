@@ -51,7 +51,7 @@ function App() {
 
   const handleFilter = () => {
     const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.startsWith(monthFilter) : true;
+      const matchesMonth = monthFilter ? row['月份'] === monthFilter : true;
       const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
       return matchesMonth && matchesKeyword;
     });
