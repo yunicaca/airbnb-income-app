@@ -9,13 +9,31 @@ function App() {
 
   const normalizeMonth = (raw) => {
     if (!raw) return '';
-    const match = raw.match(/(\d{4})[\/-年](\d{1,2})/);
-    if (match) {
-      const year = match[1];
-      const month = match[2].padStart(2, '0');
-      return `${year}-${month}`;
+    try {
+      const zhMatch = raw.match(/(\d{4})年(\d{1,2})月?/);
+      if (zhMatch) {
+        const year = zhMatch[1];
+        const month = zhMatch[2].padStart(2, '0');
+        return `${year}-${month}`;
+      }
+
+      const date = new Date(raw);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        return `${year}-${month}`;
+      }
+
+      const match = raw.match(/(\d{4})[\/-](\d{1,2})/);
+      if (match) {
+        const year = match[1];
+        const month = match[2].padStart(2, '0');
+        return `${year}-${month}`;
+      }
+      return '';
+    } catch {
+      return '';
     }
-    return '';
   };
 
   const handleFileUpload = (e) => {
