@@ -60,6 +60,14 @@ function App() {
     return sum + amount;
   }, 0);
 
+  const totalNights = filteredData.reduce((sum, row) => {
+    const nights = parseFloat(row['获订晚数'] || 0);
+    return sum + nights;
+  }, 0);
+
+  const uniqueUnits = new Set(filteredData.map(row => row['房源名称'])).size;
+  const occupancyRate = uniqueUnits > 0 ? (totalNights / (uniqueUnits * 30)) * 100 : 0;
+
   return (
     <div style={{ padding: '20px' }}>
       <h2>Airbnb 收入汇总工具（月度报告）</h2>
@@ -76,6 +84,7 @@ function App() {
       </div>
 
       <div style={{ marginTop: '10px' }}>筛选后预订额总价：¥{totalBookingAmount.toLocaleString()}</div>
+      <div style={{ marginTop: '10px' }}>筛选后入住率：{occupancyRate.toFixed(2)}%</div>
 
       <table border="1" cellPadding="5" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
