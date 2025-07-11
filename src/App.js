@@ -18,7 +18,7 @@ function App() {
         const content = event.target.result;
         const lines = content.split('\n');
 
-        // 获取月份信息
+        // 从首行提取“月份”信息
         let month = '';
         const monthMatch = lines[0].match(/\d{4}-\d{2}/);
         if (monthMatch) {
@@ -30,7 +30,6 @@ function App() {
           header: true,
           skipEmptyLines: true,
           complete: function (results) {
-            // 为每行添加月份字段
             const enriched = results.data.map(row => ({ ...row, '月份': month }));
             allData = [...allData, ...enriched];
             filesProcessed++;
@@ -55,18 +54,25 @@ function App() {
     setFilteredData(filtered);
   };
 
+  const getDaysInMonth = (monthStr) => {
+    const [year, month] = monthStr.split('-').map(Number);
+    return new Date(year, month, 0).getDate();
+  };
+
   const totalBookingAmount = filteredData.reduce((sum, row) => {
     const amount = parseFloat(row['预订额']?.replace(/[^\d.]/g, '') || 0);
     return sum + amount;
   }, 0);
 
   const totalNights = filteredData.reduce((sum, row) => {
-    const nights = parseFloat(row['获订晚数'] || 0);
-    return sum + nights;
+    return sum + (parseInt(row['获订晚数']) || 0);
   }, 0);
 
-  const uniqueUnits = new Set(filteredData.map(row => row['房源名称'])).size;
-  const occupancyRate = uniqueUnits > 0 ? (totalNights / (uniqueUnits * 30)) * 100 : 0;
+  const uniqueListings = new Set(filteredData.map(row => row['房源名称'])).size;
+  const daysInMonth = monthFilter ? getDaysInMonth(monthFilter) : 30;
+  const occupancyRate = uniqueListings > 0
+    ? ((totalNights / (uniqueListings * daysInMonth)) * 100).toFixed(2)
+    : '0.00';
 
   return (
     <div style={{ padding: '20px' }}>
@@ -83,8 +89,10 @@ function App() {
         <button onClick={handleFilter}>筛选</button>
       </div>
 
-      <div style={{ marginTop: '10px' }}>筛选后预订额总价：¥{totalBookingAmount.toLocaleString()}</div>
-      <div style={{ marginTop: '10px' }}>筛选后入住率：{occupancyRate.toFixed(2)}%</div>
+      <div style={{ marginTop: '10px' }}>
+        筛选后预订额总价：¥{totalBookingAmount.toLocaleString()}<br />
+        筛选后入住率：{occupancyRate}%
+      </div>
 
       <table border="1" cellPadding="5" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
