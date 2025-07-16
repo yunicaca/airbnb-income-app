@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Papa from 'papaparse';
-import './App.css';
+
 
 function App() {
   const [data, setData] = useState([]);
