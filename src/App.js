@@ -1,9 +1,7 @@
-import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import MonthlyDetailAnalysis from './pages/MonthlyDetailAnalysis';
-
 import Papa from 'papaparse';
-import { useState } from 'react';
 
 function MonthlySummary() {
   const [data, setData] = useState([]);
@@ -129,20 +127,21 @@ function MonthlySummary() {
 
 function App() {
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Airbnb 工具导航</h1>
-      <nav>
-        <Link to="/">月度汇总</Link> |{' '}
-        <Link to="/details">预订明细分析</Link>
-      </nav>
+    <Router>
+      <div style={{ padding: '20px' }}>
+        <h1>Airbnb 工具导航</h1>
+        <nav>
+          <Link to="/">月度汇总</Link>&nbsp;&nbsp;
+          <Link to="/details">预订明细分析</Link>
+        </nav>
+        <hr />
 
-      <hr />
-
-      <Routes>
-        <Route path="/" element={<MonthlySummary />} />
-        <Route path="/details" element={<MonthlyDetailAnalysis />} />
-      </Routes>
-    </div>
+        <Routes>
+          <Route path="/" element={<MonthlySummary />} />
+          <Route path="/details" element={<MonthlyDetailAnalysis />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
