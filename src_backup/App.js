@@ -1,28 +1,8 @@
 import React, { useState } from 'react';
-// 移除了 Router 相关导入
-// import MonthlyDetailAnalysis from './pages/MonthlyDetailAnalysis';
-// 注意：你需要将 MonthlyDetailAnalysis 组件的代码复制到这个文件中，或者确保没有Router依赖
+import Papa from 'papaparse';
 
-// 临时的预订明细分析组件（你可以后续完善）
-function MonthlyDetailAnalysis() {
-  const [data, setData] = useState([]);
-  
-  const handleFileUpload = (e) => {
-    // 这里可以添加详细分析的文件上传逻辑
-    console.log('详细分析文件上传');
-  };
 
-  return (
-    <div style={{ padding: '20px' }}>
-      <h2>预订明细分析</h2>
-      <input type="file" accept=".csv" multiple onChange={handleFileUpload} />
-      <p>此功能正在开发中...</p>
-      {/* 你可以在这里添加详细分析的具体功能 */}
-    </div>
-  );
-}
-
-function MonthlySummary() {
+function App() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [monthFilter, setMonthFilter] = useState('');
@@ -45,26 +25,21 @@ function MonthlySummary() {
           month = monthMatch[0];
         }
 
-        // 简化的CSV解析（替代Papa.parse）
         const csvContent = lines.slice(1).join('\n');
-        const csvLines = csvContent.split('\n');
-        const headers = csvLines[0].split(',').map(h => h.trim());
-        const rows = csvLines.slice(1).map(line => {
-          const values = line.split(',');
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header] = values[index] ? values[index].trim() : '';
-          });
-          return { ...obj, '月份': month };
-        }).filter(row => Object.values(row).some(val => val && val !== ''));
+        Papa.parse(csvContent, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function (results) {
+            const enriched = results.data.map(row => ({ ...row, '月份': month }));
+            allData = [...allData, ...enriched];
+            filesProcessed++;
 
-        allData = [...allData, ...rows];
-        filesProcessed++;
-
-        if (filesProcessed === files.length) {
-          setData(allData);
-          setFilteredData(allData);
-        }
+            if (filesProcessed === files.length) {
+              setData(allData);
+              setFilteredData(allData);
+            }
+          }
+        });
       };
       reader.readAsText(file);
     });
@@ -145,64 +120,6 @@ function MonthlySummary() {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function App() {
-  // 使用 useState 来管理当前显示的页面，替代 Router
-  const [currentPage, setCurrentPage] = useState('summary');
-
-  const renderPage = () => {
-    switch(currentPage) {
-      case 'details':
-        return <MonthlyDetailAnalysis />;
-      case 'summary':
-      default:
-        return <MonthlySummary />;
-    }
-  };
-
-  return (
-    <div style={{ padding: '20px' }}>
-      <h1>🏠 Airbnb 工具导航</h1>
-      
-      {/* 替代 Router 的简单导航 */}
-      <nav style={{ marginBottom: '20px' }}>
-        <button 
-          onClick={() => setCurrentPage('summary')} 
-          style={{
-            padding: '10px 20px',
-            marginRight: '10px',
-            backgroundColor: currentPage === 'summary' ? '#ff5a5f' : '#f0f0f0',
-            color: currentPage === 'summary' ? 'white' : '#333',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          月度汇总
-        </button>
-        
-        <button 
-          onClick={() => setCurrentPage('details')} 
-          style={{
-            padding: '10px 20px',
-            backgroundColor: currentPage === 'details' ? '#ff5a5f' : '#f0f0f0',
-            color: currentPage === 'details' ? 'white' : '#333',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          预订明细分析
-        </button>
-      </nav>
-      
-      <hr />
-
-      {/* 根据当前页面状态显示对应组件 */}
-      {renderPage()}
     </div>
   );
 }
