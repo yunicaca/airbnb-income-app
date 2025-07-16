@@ -15,15 +15,17 @@ function MonthlyDetailAnalysis() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
+        // 提取所属月份 "04_2024" => "2024-04"
         const fileName = file.name;
-        const match = fileName.match(/(\d{2})-(\d{4})/);
+        const match = fileName.match(/(\d{2})[-_](\d{4})/);
         let year = '', month = '';
         if (match) {
-          const [, month, year] = match;
+          [ , month, year ] = match;
         }
         const targetMonth = `${year}-${month}`;
+
         const startBoundary = new Date(`${targetMonth}-01`);
-        const endBoundary = new Date(`${targetMonth}-01`);
+        const endBoundary = new Date(startBoundary);
         endBoundary.setMonth(endBoundary.getMonth() + 1);
 
         const parsed = json
@@ -31,26 +33,30 @@ function MonthlyDetailAnalysis() {
           .map(row => {
             const start = new Date(row['Start date']);
             const end = new Date(row['End date']);
-            const nights = (end - start) / (1000 * 3600 * 24);
-            const totalDeduct = (parseFloat(row['Cleaning fee']) || 0)
-              + (parseFloat(row['Service fee']) || 0)
-              + (parseFloat(row['Pet fee']) || 0);
-            const gross = parseFloat(row['Gross earnings']) || 0;
-            const dailyRate = nights > 0 ? (gross - totalDeduct) / nights : 0;
+            const nightsTotal = (end - start) / (1000 * 3600 * 24);
+
             const overlapStart = start > startBoundary ? start : startBoundary;
             const overlapEnd = end < endBoundary ? end : endBoundary;
-            const monthNights = (overlapEnd - overlapStart) / (1000 * 3600 * 24);
-            const revenue = dailyRate * (monthNights > 0 ? monthNights : 0);
+            const monthNights = Math.max(0, (overlapEnd - overlapStart) / (1000 * 3600 * 24));
+
+            const gross = parseFloat(row['Gross earnings']) || 0;
+            const cleaning = parseFloat(row['Cleaning fee']) || 0;
+            const service = parseFloat(row['Service fee']) || 0;
+            const pet = parseFloat(row['Pet fee']) || 0;
+            const totalDeduct = cleaning + service + pet;
+
+            const dailyRate = nightsTotal > 0 ? (gross - totalDeduct) / nightsTotal : 0;
+            const revenue = dailyRate * monthNights;
 
             return {
-              nickname: row['Listing'],
+              nickname: row['Confirmation code'],
               confirmation: row['Confirmation code'],
               startDate: row['Start date'],
               endDate: row['End date'],
               dailyRate: dailyRate.toFixed(2),
-              aprilNights: monthNights > 0 ? monthNights : 0,
+              aprilNights: monthNights,
               revenue: revenue.toFixed(2),
-              targetMonth
+              targetMonth: targetMonth
             };
           });
 
@@ -90,7 +96,7 @@ function MonthlyDetailAnalysis() {
       <table border="1" cellPadding="5" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th>昵称</th>
+            <th>编号</th>
             <th>确认号</th>
             <th>开始时间</th>
             <th>结束时间</th>
