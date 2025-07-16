@@ -1,120 +1,116 @@
 import React, { useState } from 'react';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
-function MonthlySummary() {
-  const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+function MonthlyDetailAnalysis() {
+  const [bookings, setBookings] = useState([]);
   const [monthFilter, setMonthFilter] = useState('');
-  const [keywordFilter, setKeywordFilter] = useState('');
+  const [nicknameFilter, setNicknameFilter] = useState('');
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    let allData = [];
-    let filesProcessed = 0;
-
-    files.forEach((file) => {
+  const parseFile = (file) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = function (event) {
-        const content = event.target.result;
-        const lines = content.split('\n');
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
 
-        let month = '';
-        const monthMatch = lines[0].match(/\d{4}-\d{2}/);
-        if (monthMatch) {
-          month = monthMatch[0];
+        const fileName = file.name;
+        const match = fileName.match(/(\d{2})-(\d{4})/);
+        let year = '', month = '';
+        if (match) {
+          [_, month, year] = match;
         }
+        const targetMonth = `${year}-${month}`;
+        const startBoundary = new Date(`${targetMonth}-01`);
+        const endBoundary = new Date(`${targetMonth}-01`);
+        endBoundary.setMonth(endBoundary.getMonth() + 1);
 
-        const csvContent = lines.slice(1).join('\n');
-        Papa.parse(csvContent, {
-          header: true,
-          skipEmptyLines: true,
-          complete: function (results) {
-            const enriched = results.data.map(row => ({ ...row, '月份': month }));
-            allData = [...allData, ...enriched];
-            filesProcessed++;
+        const parsed = json
+          .filter(row => row['Type'] === 'Reservation')
+          .map(row => {
+            const start = new Date(row['Start date']);
+            const end = new Date(row['End date']);
+            const nights = (end - start) / (1000 * 3600 * 24);
+            const totalDeduct = (parseFloat(row['Cleaning fee']) || 0)
+              + (parseFloat(row['Service fee']) || 0)
+              + (parseFloat(row['Pet fee']) || 0);
+            const gross = parseFloat(row['Gross earnings']) || 0;
+            const dailyRate = nights > 0 ? (gross - totalDeduct) / nights : 0;
+            const overlapStart = start > startBoundary ? start : startBoundary;
+            const overlapEnd = end < endBoundary ? end : endBoundary;
+            const monthNights = (overlapEnd - overlapStart) / (1000 * 3600 * 24);
+            const revenue = dailyRate * (monthNights > 0 ? monthNights : 0);
 
-            if (filesProcessed === files.length) {
-              setData(allData);
-              setFilteredData(allData);
-            }
-          }
-        });
+            return {
+              nickname: row['Listing'],
+              confirmation: row['Confirmation code'],
+              startDate: row['Start date'],
+              endDate: row['End date'],
+              dailyRate: dailyRate.toFixed(2),
+              aprilNights: monthNights > 0 ? monthNights : 0,
+              revenue: revenue.toFixed(2),
+              targetMonth
+            };
+          });
+
+        resolve(parsed);
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     });
   };
 
-  const handleFilter = () => {
-    const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
-      const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
-      return matchesMonth && matchesKeyword;
-    });
-    setFilteredData(filtered);
+  const handleUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    const all = [];
+    for (const file of files) {
+      const result = await parseFile(file);
+      all.push(...result);
+    }
+    setBookings(all);
   };
 
-  const getDaysInMonth = (monthStr) => {
-    const [year, month] = monthStr.split('-').map(Number);
-    return new Date(year, month, 0).getDate();
-  };
-
-  const totalBookingAmount = filteredData.reduce((sum, row) => {
-    const amount = parseFloat(row['预订额']?.replace(/[^\d.]/g, '') || 0);
-    return sum + amount;
-  }, 0);
-
-  const totalNights = filteredData.reduce((sum, row) => {
-    return sum + (parseInt(row['获订晚数']) || 0);
-  }, 0);
-
-  const uniqueListings = new Set(filteredData.map(row => row['房源名称'])).size;
-  const daysInMonth = monthFilter ? getDaysInMonth(monthFilter) : 30;
-  const occupancyRate = uniqueListings > 0
-    ? ((totalNights / (uniqueListings * daysInMonth)) * 100).toFixed(2)
-    : '0.00';
+  const filtered = bookings.filter(row => {
+    const matchMonth = monthFilter ? row.targetMonth === monthFilter : true;
+    const matchNick = nicknameFilter ? row.nickname.includes(nicknameFilter) : true;
+    return matchMonth && matchNick;
+  });
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Airbnb 收入汇总工具（月度报告）</h2>
-      <input type="file" accept=".csv" multiple onChange={handleFileUpload} />
+      <h2>Airbnb 当月详细预订分析</h2>
+      <input type="file" accept=".xlsx,.xls" multiple onChange={handleUpload} />
 
       <div style={{ marginTop: '10px' }}>
-        按月份筛选：
-        <input type="month" onChange={e => setMonthFilter(e.target.value)} />
+        筛选月份：<input type="month" onChange={e => setMonthFilter(e.target.value)} />
         &nbsp;&nbsp;
-        按房源关键词筛选（内部名称）：
-        <input type="text" placeholder="例如: 14" onChange={e => setKeywordFilter(e.target.value)} />
-        &nbsp;
-        <button onClick={handleFilter}>筛选</button>
-      </div>
-
-      <div style={{ marginTop: '10px' }}>
-        筛选后预订额总价：¥{totalBookingAmount.toLocaleString()}<br />
-        筛选后入住率：{occupancyRate}%
+        筛选昵称关键词：<input type="text" placeholder="如: 1330" onChange={e => setNicknameFilter(e.target.value)} />
       </div>
 
       <table border="1" cellPadding="5" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th>房源名称</th>
-            <th>内部名称</th>
-            <th>货币</th>
-            <th>预订额</th>
-            <th>获订晚数</th>
-            <th>日均价</th>
-            <th>月份</th>
+            <th>昵称</th>
+            <th>确认号</th>
+            <th>开始时间</th>
+            <th>结束时间</th>
+            <th>当月入住天数</th>
+            <th>Daily Rate</th>
+            <th>当月收入</th>
+            <th>所属月份</th>
           </tr>
         </thead>
         <tbody>
-          {filteredData.map((row, idx) => (
+          {filtered.map((row, idx) => (
             <tr key={idx}>
-              <td>{row['房源名称']}</td>
-              <td>{row['内部名称']}</td>
-              <td>{row['货币']}</td>
-              <td>{row['预订额']}</td>
-              <td>{row['获订晚数']}</td>
-              <td>{row['日均价']}</td>
-              <td>{row['月份']}</td>
+              <td>{row.nickname}</td>
+              <td>{row.confirmation}</td>
+              <td>{row.startDate}</td>
+              <td>{row.endDate}</td>
+              <td>{row.aprilNights}</td>
+              <td>{row.dailyRate}</td>
+              <td>{row.revenue}</td>
+              <td>{row.targetMonth}</td>
             </tr>
           ))}
         </tbody>
@@ -123,4 +119,4 @@ function MonthlySummary() {
   );
 }
 
-export default MonthlySummary;
+export default MonthlyDetailAnalysis;
