@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link } from 'react-router-dom';
 import MonthlyDetailAnalysis from './pages/MonthlyDetailAnalysis';
 import Papa from 'papaparse';
 
