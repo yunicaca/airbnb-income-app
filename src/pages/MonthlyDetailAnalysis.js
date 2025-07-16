@@ -19,7 +19,7 @@ function MonthlyDetailAnalysis() {
         const match = fileName.match(/(\d{2})-(\d{4})/);
         let year = '', month = '';
         if (match) {
-          [_, month, year] = match;
+          const [, month, year] = match;
         }
         const targetMonth = `${year}-${month}`;
         const startBoundary = new Date(`${targetMonth}-01`);
