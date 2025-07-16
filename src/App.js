@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
-// 移除了 Router 相关导入
-// import MonthlyDetailAnalysis from './pages/MonthlyDetailAnalysis';
-// 注意：你需要将 MonthlyDetailAnalysis 组件的代码复制到这个文件中，或者确保没有Router依赖
 
-// 临时的预订明细分析组件（你可以后续完善）
+// 预订明细分析组件
 function MonthlyDetailAnalysis() {
   const [data, setData] = useState([]);
   
   const handleFileUpload = (e) => {
-    // 这里可以添加详细分析的文件上传逻辑
     console.log('详细分析文件上传');
+    // 这里可以添加详细分析的文件上传逻辑
   };
 
   return (
@@ -17,11 +14,11 @@ function MonthlyDetailAnalysis() {
       <h2>预订明细分析</h2>
       <input type="file" accept=".csv" multiple onChange={handleFileUpload} />
       <p>此功能正在开发中...</p>
-      {/* 你可以在这里添加详细分析的具体功能 */}
     </div>
   );
 }
 
+// 月度汇总组件
 function MonthlySummary() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -45,20 +42,24 @@ function MonthlySummary() {
           month = monthMatch[0];
         }
 
-        // 简化的CSV解析（替代Papa.parse）
+        // 简化的CSV解析（不使用Papa.parse）
         const csvContent = lines.slice(1).join('\n');
-        const csvLines = csvContent.split('\n');
-        const headers = csvLines[0].split(',').map(h => h.trim());
-        const rows = csvLines.slice(1).map(line => {
-          const values = line.split(',');
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header] = values[index] ? values[index].trim() : '';
-          });
-          return { ...obj, '月份': month };
-        }).filter(row => Object.values(row).some(val => val && val !== ''));
+        const csvLines = csvContent.split('\n').filter(line => line.trim());
+        
+        if (csvLines.length > 0) {
+          const headers = csvLines[0].split(',').map(h => h.trim());
+          const rows = csvLines.slice(1).map(line => {
+            const values = line.split(',');
+            const obj = {};
+            headers.forEach((header, index) => {
+              obj[header] = values[index] ? values[index].trim() : '';
+            });
+            return { ...obj, '月份': month };
+          }).filter(row => Object.values(row).some(val => val && val !== ''));
 
-        allData = [...allData, ...rows];
+          allData = [...allData, ...rows];
+        }
+        
         filesProcessed++;
 
         if (filesProcessed === files.length) {
@@ -134,13 +135,13 @@ function MonthlySummary() {
         <tbody>
           {filteredData.map((row, idx) => (
             <tr key={idx}>
-              <td>{row['房源名称']}</td>
-              <td>{row['内部名称']}</td>
-              <td>{row['货币']}</td>
-              <td>{row['预订额']}</td>
-              <td>{row['获订晚数']}</td>
-              <td>{row['日均价']}</td>
-              <td>{row['月份']}</td>
+              <td>{row['房源名称'] || ''}</td>
+              <td>{row['内部名称'] || ''}</td>
+              <td>{row['货币'] || ''}</td>
+              <td>{row['预订额'] || ''}</td>
+              <td>{row['获订晚数'] || ''}</td>
+              <td>{row['日均价'] || ''}</td>
+              <td>{row['月份'] || ''}</td>
             </tr>
           ))}
         </tbody>
@@ -149,8 +150,8 @@ function MonthlySummary() {
   );
 }
 
+// 主应用组件 - 使用按钮切换页面，不使用Router
 function App() {
-  // 使用 useState 来管理当前显示的页面，替代 Router
   const [currentPage, setCurrentPage] = useState('summary');
 
   const renderPage = () => {
@@ -167,7 +168,7 @@ function App() {
     <div style={{ padding: '20px' }}>
       <h1>🏠 Airbnb 工具导航</h1>
       
-      {/* 替代 Router 的简单导航 */}
+      {/* 简单的按钮导航，不使用Link */}
       <nav style={{ marginBottom: '20px' }}>
         <button 
           onClick={() => setCurrentPage('summary')} 

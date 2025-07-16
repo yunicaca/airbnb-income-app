@@ -1,10 +1,10 @@
 {
-  "name": "airbnb-income-clean",
+  "name": "airbnb-clean",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "react-scripts": "5.0.1"
   },
   "scripts": {
@@ -14,9 +14,7 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
+    "extends": "react-app"
   },
   "browserslist": {
     "production": [
