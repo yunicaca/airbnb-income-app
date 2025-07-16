@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 
 // 数据分析组件
@@ -186,32 +186,30 @@ function Reports() {
 // 主应用组件
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <nav className="navbar">
-          <div className="nav-brand">
-            <Link to="/">🏠 Airbnb 分析工具</Link>
-          </div>
-          <div className="nav-links">
-            <Link to="/">首页</Link>
-            <Link to="/analysis">数据分析</Link>
-            <Link to="/reports">收入报告</Link>
-          </div>
-        </nav>
+    <div className="App">
+      <nav className="navbar">
+        <div className="nav-brand">
+          <Link to="/">🏠 Airbnb 分析工具</Link>
+        </div>
+        <div className="nav-links">
+          <Link to="/">首页</Link>
+          <Link to="/analysis">数据分析</Link>
+          <Link to="/reports">收入报告</Link>
+        </div>
+      </nav>
 
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/analysis" element={<DataAnalysis />} />
-            <Route path="/reports" element={<Reports />} />
-          </Routes>
-        </main>
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/analysis" element={<DataAnalysis />} />
+          <Route path="/reports" element={<Reports />} />
+        </Routes>
+      </main>
 
-        <footer className="footer">
-          <p>&copy; 2024 Airbnb 收入分析工具</p>
-        </footer>
-      </div>
-    </Router>
+      <footer className="footer">
+        <p>&copy; 2024 Airbnb 收入分析工具</p>
+      </footer>
+    </div>
   );
 }
 
