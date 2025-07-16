@@ -1,145 +1,215 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
-import MonthlyDetailAnalysis from './pages/MonthlyDetailAnalysis';
-import Papa from 'papaparse';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import './App.css';
 
-function MonthlySummary() {
+// 数据分析组件
+function DataAnalysis() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [monthFilter, setMonthFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [keywordFilter, setKeywordFilter] = useState('');
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    let allData = [];
-    let filesProcessed = 0;
-
-    files.forEach((file) => {
+  const handleUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
       const reader = new FileReader();
-      reader.onload = function (event) {
+      reader.onload = function(event) {
         const content = event.target.result;
+        // 简单的CSV解析（你可以后续升级为使用papaparse）
         const lines = content.split('\n');
-
-        let month = '';
-        const monthMatch = lines[0].match(/\d{4}-\d{2}/);
-        if (monthMatch) {
-          month = monthMatch[0];
-        }
-
-        const csvContent = lines.slice(1).join('\n');
-        Papa.parse(csvContent, {
-          header: true,
-          skipEmptyLines: true,
-          complete: function (results) {
-            const enriched = results.data.map(row => ({ ...row, '月份': month }));
-            allData = [...allData, ...enriched];
-            filesProcessed++;
-
-            if (filesProcessed === files.length) {
-              setData(allData);
-              setFilteredData(allData);
-            }
-          }
+        const headers = lines[0].split(',');
+        const rows = lines.slice(1).map(line => {
+          const values = line.split(',');
+          const obj = {};
+          headers.forEach((header, index) => {
+            obj[header.trim()] = values[index] ? values[index].trim() : '';
+          });
+          return obj;
         });
+        setData(rows);
+        setFilteredData(rows);
       };
       reader.readAsText(file);
-    });
+    }
   };
 
   const handleFilter = () => {
-    const filtered = data.filter(row => {
-      const matchesMonth = monthFilter ? row['月份']?.includes(monthFilter) : true;
-      const matchesKeyword = keywordFilter ? row['内部名称']?.includes(keywordFilter) : true;
-      return matchesMonth && matchesKeyword;
-    });
+    let filtered = data;
+    
+    if (dateFilter) {
+      filtered = filtered.filter(item => 
+        item.date && item.date.includes(dateFilter)
+      );
+    }
+    
+    if (keywordFilter) {
+      filtered = filtered.filter(item => 
+        Object.values(item).some(value => 
+          value.toString().toLowerCase().includes(keywordFilter.toLowerCase())
+        )
+      );
+    }
+    
     setFilteredData(filtered);
   };
 
-  const getDaysInMonth = (monthStr) => {
-    const [year, month] = monthStr.split('-').map(Number);
-    return new Date(year, month, 0).getDate();
-  };
-
-  const totalBookingAmount = filteredData.reduce((sum, row) => {
-    const amount = parseFloat(row['预订额']?.replace(/[^\d.]/g, '') || 0);
-    return sum + amount;
-  }, 0);
-
-  const totalNights = filteredData.reduce((sum, row) => {
-    return sum + (parseInt(row['获订晚数']) || 0);
-  }, 0);
-
-  const uniqueListings = new Set(filteredData.map(row => row['房源名称'])).size;
-  const daysInMonth = monthFilter ? getDaysInMonth(monthFilter) : 30;
-  const occupancyRate = uniqueListings > 0
-    ? ((totalNights / (uniqueListings * daysInMonth)) * 100).toFixed(2)
-    : '0.00';
-
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Airbnb 收入汇总工具（月度报告）</h2>
-      <input type="file" accept=".csv" multiple onChange={handleFileUpload} />
-
-      <div style={{ marginTop: '10px' }}>
-        按月份筛选：
-        <input type="month" onChange={e => setMonthFilter(e.target.value)} />
-        &nbsp;&nbsp;
-        按房源关键词筛选（内部名称）：
-        <input type="text" placeholder="例如: 14" onChange={e => setKeywordFilter(e.target.value)} />
-        &nbsp;
-        <button onClick={handleFilter}>筛选</button>
+    <div className="page">
+      <h1>Airbnb 收入数据分析</h1>
+      
+      <div className="upload-section">
+        <h3>上传数据文件</h3>
+        <input 
+          type="file" 
+          accept=".csv,.txt"
+          onChange={handleUpload}
+          className="file-input"
+        />
       </div>
 
-      <div style={{ marginTop: '10px' }}>
-        筛选后预订额总价：¥{totalBookingAmount.toLocaleString()}<br />
-        筛选后入住率：{occupancyRate}%
+      <div className="filter-section">
+        <h3>数据筛选</h3>
+        <div className="filters">
+          <input
+            type="text"
+            placeholder="日期筛选 (例如: 2024-01)"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="filter-input"
+          />
+          <input
+            type="text"
+            placeholder="关键词搜索"
+            value={keywordFilter}
+            onChange={(e) => setKeywordFilter(e.target.value)}
+            className="filter-input"
+          />
+          <button onClick={handleFilter} className="filter-button">
+            应用筛选
+          </button>
+        </div>
       </div>
 
-      <table border="1" cellPadding="5" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th>房源名称</th>
-            <th>内部名称</th>
-            <th>货币</th>
-            <th>预订额</th>
-            <th>获订晚数</th>
-            <th>日均价</th>
-            <th>月份</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((row, idx) => (
-            <tr key={idx}>
-              <td>{row['房源名称']}</td>
-              <td>{row['内部名称']}</td>
-              <td>{row['货币']}</td>
-              <td>{row['预订额']}</td>
-              <td>{row['获订晚数']}</td>
-              <td>{row['日均价']}</td>
-              <td>{row['月份']}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="results-section">
+        <h3>数据预览 ({filteredData.length} 条记录)</h3>
+        {filteredData.length > 0 ? (
+          <div className="data-table">
+            <table>
+              <thead>
+                <tr>
+                  {Object.keys(filteredData[0]).map(key => (
+                    <th key={key}>{key}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.slice(0, 10).map((item, index) => (
+                  <tr key={index}>
+                    {Object.values(item).map((value, i) => (
+                      <td key={i}>{value}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredData.length > 10 && (
+              <p className="showing-info">显示前10条记录，共{filteredData.length}条</p>
+            )}
+          </div>
+        ) : (
+          <p className="no-data">请上传CSV文件开始分析</p>
+        )}
+      </div>
     </div>
   );
 }
 
+// 首页组件
+function Home() {
+  return (
+    <div className="page">
+      <h1>欢迎使用 Airbnb 收入分析工具</h1>
+      <div className="home-content">
+        <div className="feature-card">
+          <h3>📊 数据分析</h3>
+          <p>上传你的Airbnb收入数据，进行深入分析</p>
+          <Link to="/analysis" className="card-link">开始分析</Link>
+        </div>
+        
+        <div className="feature-card">
+          <h3>💰 收入统计</h3>
+          <p>查看详细的收入统计和趋势</p>
+          <Link to="/reports" className="card-link">查看报告</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 报告页面组件
+function Reports() {
+  return (
+    <div className="page">
+      <h1>收入报告</h1>
+      <div className="report-content">
+        <div className="report-card">
+          <h3>本月收入概览</h3>
+          <div className="stat-grid">
+            <div className="stat-item">
+              <span className="stat-label">总收入</span>
+              <span className="stat-value">¥0</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">订单数</span>
+              <span className="stat-value">0</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">平均每单</span>
+              <span className="stat-value">¥0</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="report-card">
+          <h3>使用说明</h3>
+          <ol>
+            <li>前往"数据分析"页面上传你的Airbnb数据文件</li>
+            <li>数据上传后，这里会显示详细的统计信息</li>
+            <li>支持CSV格式的数据文件</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 主应用组件
 function App() {
   return (
     <Router>
-      <div style={{ padding: '20px' }}>
-        <h1>Airbnb 工具导航</h1>
-        <nav>
-          <Link to="/">月度汇总</Link>&nbsp;&nbsp;
-          <Link to="/details">预订明细分析</Link>
+      <div className="App">
+        <nav className="navbar">
+          <div className="nav-brand">
+            <Link to="/">🏠 Airbnb 分析工具</Link>
+          </div>
+          <div className="nav-links">
+            <Link to="/">首页</Link>
+            <Link to="/analysis">数据分析</Link>
+            <Link to="/reports">收入报告</Link>
+          </div>
         </nav>
-        <hr />
 
-        <Routes>
-          <Route path="/" element={<MonthlySummary />} />
-          <Route path="/details" element={<MonthlyDetailAnalysis />} />
-        </Routes>
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/analysis" element={<DataAnalysis />} />
+            <Route path="/reports" element={<Reports />} />
+          </Routes>
+        </main>
+
+        <footer className="footer">
+          <p>&copy; 2024 Airbnb 收入分析工具</p>
+        </footer>
       </div>
     </Router>
   );
