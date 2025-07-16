@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 
-// 数据分析组件
-function DataAnalysis() {
+function App() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [dateFilter, setDateFilter] = useState('');
@@ -13,20 +12,28 @@ function DataAnalysis() {
     if (file) {
       const reader = new FileReader();
       reader.onload = function(event) {
-        const content = event.target.result;
-        // 简单的CSV解析
-        const lines = content.split('\n');
-        const headers = lines[0].split(',');
-        const rows = lines.slice(1).map(line => {
-          const values = line.split(',');
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header.trim()] = values[index] ? values[index].trim() : '';
+        try {
+          const content = event.target.result;
+          // 简单的CSV解析
+          const lines = content.split('\n').filter(line => line.trim());
+          if (lines.length === 0) return;
+          
+          const headers = lines[0].split(',').map(h => h.trim());
+          const rows = lines.slice(1).map(line => {
+            const values = line.split(',');
+            const obj = {};
+            headers.forEach((header, index) => {
+              obj[header] = values[index] ? values[index].trim() : '';
+            });
+            return obj;
           });
-          return obj;
-        });
-        setData(rows);
-        setFilteredData(rows);
+          
+          setData(rows);
+          setFilteredData(rows);
+          alert(`成功上传 ${rows.length} 条数据！`);
+        } catch (error) {
+          alert('文件解析失败，请检查CSV格式');
+        }
       };
       reader.readAsText(file);
     }
@@ -37,7 +44,9 @@ function DataAnalysis() {
     
     if (dateFilter) {
       filtered = filtered.filter(item => 
-        item.date && item.date.includes(dateFilter)
+        Object.values(item).some(value => 
+          value.toString().includes(dateFilter)
+        )
       );
     }
     
@@ -52,91 +61,38 @@ function DataAnalysis() {
     setFilteredData(filtered);
   };
 
-  return (
-    <div className="section">
-      <h2>📊 数据分析</h2>
-      
-      <div className="upload-section">
-        <h3>上传数据文件</h3>
-        <input 
-          type="file" 
-          accept=".csv,.txt"
-          onChange={handleUpload}
-          className="file-input"
-        />
-      </div>
+  const clearFilters = () => {
+    setDateFilter('');
+    setKeywordFilter('');
+    setFilteredData(data);
+  };
 
-      <div className="filter-section">
-        <h3>数据筛选</h3>
-        <div className="filters">
-          <input
-            type="text"
-            placeholder="日期筛选 (例如: 2024-01)"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="filter-input"
-          />
-          <input
-            type="text"
-            placeholder="关键词搜索"
-            value={keywordFilter}
-            onChange={(e) => setKeywordFilter(e.target.value)}
-            className="filter-input"
-          />
-          <button onClick={handleFilter} className="filter-button">
-            应用筛选
-          </button>
-        </div>
-      </div>
-
-      <div className="results-section">
-        <h3>数据预览 ({filteredData.length} 条记录)</h3>
-        {filteredData.length > 0 ? (
-          <div className="data-table">
-            <table>
-              <thead>
-                <tr>
-                  {Object.keys(filteredData[0]).map(key => (
-                    <th key={key}>{key}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.slice(0, 10).map((item, index) => (
-                  <tr key={index}>
-                    {Object.values(item).map((value, i) => (
-                      <td key={i}>{value}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredData.length > 10 && (
-              <p className="showing-info">显示前10条记录，共{filteredData.length}条</p>
-            )}
-          </div>
-        ) : (
-          <p className="no-data">请上传CSV文件开始分析</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// 收入统计组件
-function IncomeStats({ data }) {
   const calculateStats = () => {
     if (!data || data.length === 0) {
       return { totalIncome: 0, orderCount: 0, avgIncome: 0 };
     }
     
-    const totalIncome = data.reduce((sum, item) => {
-      const income = parseFloat(item.income || item.收入 || item.金额 || 0);
-      return sum + (isNaN(income) ? 0 : income);
-    }, 0);
+    // 尝试找到收入相关的列
+    const incomeFields = ['income', '收入', '金额', 'amount', 'price', '价格'];
+    let totalIncome = 0;
+    let validIncomeCount = 0;
+    
+    data.forEach(item => {
+      for (let field of incomeFields) {
+        const value = item[field];
+        if (value) {
+          const numValue = parseFloat(value.toString().replace(/[^\d.-]/g, ''));
+          if (!isNaN(numValue)) {
+            totalIncome += numValue;
+            validIncomeCount++;
+            break;
+          }
+        }
+      }
+    });
     
     const orderCount = data.length;
-    const avgIncome = orderCount > 0 ? totalIncome / orderCount : 0;
+    const avgIncome = validIncomeCount > 0 ? totalIncome / validIncomeCount : 0;
     
     return { totalIncome, orderCount, avgIncome };
   };
@@ -144,250 +100,146 @@ function IncomeStats({ data }) {
   const stats = calculateStats();
 
   return (
-    <div className="section">
-      <h2>💰 收入统计</h2>
-      
-      <div className="stat-grid">
-        <div className="stat-item">
-          <span className="stat-label">总收入</span>
-          <span className="stat-value">¥{stats.totalIncome.toFixed(2)}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">订单数</span>
-          <span className="stat-value">{stats.orderCount}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">平均每单</span>
-          <span className="stat-value">¥{stats.avgIncome.toFixed(2)}</span>
-        </div>
-      </div>
-      
-      <div className="usage-guide">
-        <h3>📋 使用说明</h3>
-        <ol>
-          <li>在"数据分析"部分上传你的Airbnb数据文件（CSV格式）</li>
-          <li>数据上传后，这里会自动显示收入统计</li>
-          <li>支持包含收入、金额等字段的CSV文件</li>
-          <li>可以使用筛选功能查看特定时间段的数据</li>
-        </ol>
-      </div>
-    </div>
-  );
-}
-
-// 主应用组件
-function App() {
-  const [currentView, setCurrentView] = useState('home');
-  const [uploadedData, setUploadedData] = useState([]);
-
-  const renderContent = () => {
-    switch(currentView) {
-      case 'analysis':
-        return <DataAnalysisWithCallback onDataUpload={setUploadedData} />;
-      case 'stats':
-        return <IncomeStats data={uploadedData} />;
-      default:
-        return <Home />;
-    }
-  };
-
-  return (
     <div className="App">
-      <nav className="navbar">
-        <div className="nav-brand">
-          🏠 Airbnb 收入分析工具
-        </div>
-        <div className="nav-links">
-          <button 
-            className={currentView === 'home' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setCurrentView('home')}
-          >
-            首页
-          </button>
-          <button 
-            className={currentView === 'analysis' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setCurrentView('analysis')}
-          >
-            数据分析
-          </button>
-          <button 
-            className={currentView === 'stats' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setCurrentView('stats')}
-          >
-            收入统计
-          </button>
-        </div>
-      </nav>
+      {/* 头部 */}
+      <header className="header">
+        <h1>🏠 Airbnb 收入分析工具</h1>
+        <p>简单易用的数据分析平台</p>
+      </header>
 
+      {/* 主内容 */}
       <main className="main-content">
-        {renderContent()}
-      </main>
-
-      <footer className="footer">
-        <p>&copy; 2024 Airbnb 收入分析工具</p>
-      </footer>
-    </div>
-  );
-}
-
-// 带回调的数据分析组件
-function DataAnalysisWithCallback({ onDataUpload }) {
-  const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
-  const [dateFilter, setDateFilter] = useState('');
-  const [keywordFilter, setKeywordFilter] = useState('');
-
-  const handleUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const content = event.target.result;
-        const lines = content.split('\n');
-        const headers = lines[0].split(',');
-        const rows = lines.slice(1).map(line => {
-          const values = line.split(',');
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header.trim()] = values[index] ? values[index].trim() : '';
-          });
-          return obj;
-        });
-        setData(rows);
-        setFilteredData(rows);
-        onDataUpload(rows); // 传递数据给父组件
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleFilter = () => {
-    let filtered = data;
-    
-    if (dateFilter) {
-      filtered = filtered.filter(item => 
-        item.date && item.date.includes(dateFilter)
-      );
-    }
-    
-    if (keywordFilter) {
-      filtered = filtered.filter(item => 
-        Object.values(item).some(value => 
-          value.toString().toLowerCase().includes(keywordFilter.toLowerCase())
-        )
-      );
-    }
-    
-    setFilteredData(filtered);
-  };
-
-  return (
-    <div className="section">
-      <h1>📊 Airbnb 数据分析</h1>
-      
-      <div className="upload-section">
-        <h3>上传数据文件</h3>
-        <input 
-          type="file" 
-          accept=".csv,.txt"
-          onChange={handleUpload}
-          className="file-input"
-        />
-      </div>
-
-      <div className="filter-section">
-        <h3>数据筛选</h3>
-        <div className="filters">
-          <input
-            type="text"
-            placeholder="日期筛选 (例如: 2024-01)"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="filter-input"
-          />
-          <input
-            type="text"
-            placeholder="关键词搜索"
-            value={keywordFilter}
-            onChange={(e) => setKeywordFilter(e.target.value)}
-            className="filter-input"
-          />
-          <button onClick={handleFilter} className="filter-button">
-            应用筛选
-          </button>
+        
+        {/* 统计卡片 */}
+        <div className="stats-section">
+          <div className="stat-card">
+            <h3>总收入</h3>
+            <div className="stat-value">¥{stats.totalIncome.toFixed(2)}</div>
+          </div>
+          <div className="stat-card">
+            <h3>数据条数</h3>
+            <div className="stat-value">{stats.orderCount}</div>
+          </div>
+          <div className="stat-card">
+            <h3>平均值</h3>
+            <div className="stat-value">¥{stats.avgIncome.toFixed(2)}</div>
+          </div>
         </div>
-      </div>
 
-      <div className="results-section">
-        <h3>数据预览 ({filteredData.length} 条记录)</h3>
-        {filteredData.length > 0 ? (
-          <div className="data-table">
-            <table>
-              <thead>
-                <tr>
-                  {Object.keys(filteredData[0]).map(key => (
-                    <th key={key}>{key}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.slice(0, 10).map((item, index) => (
-                  <tr key={index}>
-                    {Object.values(item).map((value, i) => (
-                      <td key={i}>{value}</td>
+        {/* 文件上传区域 */}
+        <div className="upload-section">
+          <h2>📁 上传数据文件</h2>
+          <div className="upload-area">
+            <input 
+              type="file" 
+              accept=".csv,.txt"
+              onChange={handleUpload}
+              className="file-input"
+              id="file-upload"
+            />
+            <label htmlFor="file-upload" className="upload-label">
+              <div className="upload-icon">📄</div>
+              <div>点击选择CSV文件或拖拽到此处</div>
+              <div className="upload-hint">支持 .csv 和 .txt 格式</div>
+            </label>
+          </div>
+        </div>
+
+        {/* 筛选区域 */}
+        {data.length > 0 && (
+          <div className="filter-section">
+            <h2>🔍 数据筛选</h2>
+            <div className="filter-controls">
+              <input
+                type="text"
+                placeholder="按内容筛选..."
+                value={keywordFilter}
+                onChange={(e) => setKeywordFilter(e.target.value)}
+                className="filter-input"
+              />
+              <input
+                type="text"
+                placeholder="按日期筛选 (如: 2024-01)..."
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="filter-input"
+              />
+              <button onClick={handleFilter} className="btn btn-primary">
+                应用筛选
+              </button>
+              <button onClick={clearFilters} className="btn btn-secondary">
+                清除筛选
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 数据表格 */}
+        {filteredData.length > 0 && (
+          <div className="table-section">
+            <h2>📊 数据预览</h2>
+            <div className="table-info">
+              <span>显示 {Math.min(10, filteredData.length)} / {filteredData.length} 条记录</span>
+            </div>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    {Object.keys(filteredData[0]).map(key => (
+                      <th key={key}>{key}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredData.length > 10 && (
-              <p className="showing-info">显示前10条记录，共{filteredData.length}条</p>
-            )}
+                </thead>
+                <tbody>
+                  {filteredData.slice(0, 10).map((item, index) => (
+                    <tr key={index}>
+                      {Object.values(item).map((value, i) => (
+                        <td key={i} title={value}>{value}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        ) : (
-          <p className="no-data">请上传CSV文件开始分析</p>
         )}
-      </div>
-    </div>
-  );
-}
 
-// 首页组件
-function Home() {
-  return (
-    <div className="section">
-      <h1>🏠 欢迎使用 Airbnb 收入分析工具</h1>
-      
-      <div className="home-content">
-        <div className="feature-card">
-          <h3>📊 数据分析功能</h3>
-          <ul>
-            <li>上传CSV格式的收入数据</li>
-            <li>按日期和关键词筛选数据</li>
-            <li>查看数据表格预览</li>
-            <li>支持大文件处理</li>
-          </ul>
-        </div>
+        {/* 使用说明 */}
+        {data.length === 0 && (
+          <div className="help-section">
+            <h2>📋 使用说明</h2>
+            <div className="help-content">
+              <div className="help-step">
+                <div className="step-number">1</div>
+                <div className="step-content">
+                  <h3>准备数据文件</h3>
+                  <p>准备包含收入数据的CSV文件，确保包含日期、金额等字段</p>
+                </div>
+              </div>
+              <div className="help-step">
+                <div className="step-number">2</div>
+                <div className="step-content">
+                  <h3>上传文件</h3>
+                  <p>点击上方的文件上传区域，选择你的CSV文件</p>
+                </div>
+              </div>
+              <div className="help-step">
+                <div className="step-number">3</div>
+                <div className="step-content">
+                  <h3>查看分析</h3>
+                  <p>上传后即可查看收入统计和数据表格</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
-        <div className="feature-card">
-          <h3>💰 收入统计功能</h3>
-          <ul>
-            <li>自动计算总收入</li>
-            <li>统计订单数量</li>
-            <li>计算平均每单收入</li>
-            <li>实时更新数据</li>
-          </ul>
-        </div>
-        
-        <div className="feature-card">
-          <h3>🚀 开始使用</h3>
-          <ol>
-            <li>点击"数据分析"上传你的CSV文件</li>
-            <li>使用筛选功能查看特定数据</li>
-            <li>查看"收入统计"了解详细数据</li>
-          </ol>
-        </div>
-      </div>
+      </main>
+
+      {/* 页脚 */}
+      <footer className="footer">
+        <p>&copy; 2024 Airbnb 收入分析工具 - 简单、快速、可靠</p>
+      </footer>
     </div>
   );
 }
