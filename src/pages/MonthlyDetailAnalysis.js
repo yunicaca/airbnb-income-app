@@ -1,9 +1,5 @@
-import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
-import MonthlyDetailAnalysis from './pages/MonthlyDetailAnalysis';
-
+import React, { useState } from 'react';
 import Papa from 'papaparse';
-import { useState } from 'react';
 
 function MonthlySummary() {
   const [data, setData] = useState([]);
@@ -127,23 +123,4 @@ function MonthlySummary() {
   );
 }
 
-function App() {
-  return (
-    <div style={{ padding: '20px' }}>
-      <h1>Airbnb 工具导航</h1>
-      <nav>
-        <Link to="/">月度汇总</Link> |{' '}
-        <Link to="/details">预订明细分析</Link>
-      </nav>
-
-      <hr />
-
-      <Routes>
-        <Route path="/" element={<MonthlySummary />} />
-        <Route path="/details" element={<MonthlyDetailAnalysis />} />
-      </Routes>
-    </div>
-  );
-}
-
-export default App;
+export default MonthlySummary;
